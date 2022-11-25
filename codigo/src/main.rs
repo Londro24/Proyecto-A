@@ -70,10 +70,22 @@ fn open_file(path: &Path) -> String{
 
 
 fn pedir_rut() -> String {
-    println!("Escriba el rut del cliente");
     let mut rut: String = String::new();
-    stdin().read_line(&mut rut).unwrap();
-    return rut
+    loop{
+        println!("Escriba el rut del cliente sin puntos, guion o dígito verificador");
+        println!("'Enter' para no ingresar");
+        stdin().read_line(&mut rut).unwrap();
+        if !is_entero_positivo(&rut) || rut.trim().len() > 8 || rut.trim().len() < 7{
+            if rut.trim() == "".to_string() {
+                break
+            }
+            println!("\nIntentelo denuevo\n");
+            rut = "".to_string();
+            continue
+        }
+        break
+    }
+    return rut.trim().to_string()
 }
 
 
@@ -104,7 +116,32 @@ fn cambiar_inventario(inventario: &Path, entrada: String) -> Producto {
 }
 
 
-fn vender(finanzas: &Path, inventario: &Path, clientes: &Path) {
+fn fin_venta(suma: u32) {
+    println!("Total: ${}", suma);
+    let mut monto: String = String::new();
+    let mut monto_u32: u32 = 0;
+    loop {
+        println!("Ingrese el monto:");
+        stdin().read_line(&mut monto).unwrap();
+        if !is_entero_positivo(&monto) || monto.trim() == "".to_string() {
+            println!("\nMonto no válido\n");
+            monto = "".to_string();
+            continue
+        }
+        monto_u32 = monto.trim().parse().unwrap();
+        if monto_u32 < suma {
+            println!("\nMonto insuficiente\n");
+            monto = "".to_string();
+            continue
+        }
+        break
+    }
+    let vuelto: u32 = monto_u32 - suma;
+    println!("Vuelto: ${}", vuelto);
+}
+
+
+fn vender(finanzas: &Path, inventario: &Path, clientes: &Path) -> u32 {
     /*
         Iniciar una venta, pedir el rut del usuario, e ir agregando los productos a pantalla y cuanto
     debe pagar, si pone un - antes del código resta el producto a la compra si existe, sino lanza
@@ -124,6 +161,7 @@ fn vender(finanzas: &Path, inventario: &Path, clientes: &Path) {
         stdin().read_line(&mut entrada).unwrap();
 
         if entrada.trim() == "0" {
+            fin_venta(suma);
             break
         }
 
@@ -138,7 +176,7 @@ fn vender(finanzas: &Path, inventario: &Path, clientes: &Path) {
         
 
     }
-
+    return suma
 }
 
 
@@ -174,7 +212,7 @@ fn menu() -> u32 {
         println!("    (0) Salir del programa.");
         stdin().read_line(&mut entrada).unwrap();
 
-        if !is_entero_positivo(&entrada) || entrada.trim() == "".to_string() {
+        if !is_entero_positivo(&entrada) || entrada.trim() == "".to_string() || entrada.trim().len() > 2 {
             println!("\nIntentelo denuevo\n");
             entrada = "".to_string();
             continue
@@ -196,11 +234,11 @@ fn main() {
     let finanzas: &Path = Path::new("Finanzas.csv");
     let inventario: &Path = Path::new("inventario.csv");
     let clientes: &Path = Path::new("clientes.csv");
-
+    let mut suma = 0;
     loop {
         let opcion: u32 = menu();
         match opcion {
-            1 => vender(finanzas, inventario, clientes),
+            1 => suma += vender(finanzas, inventario, clientes),
             2 => ingresar(finanzas, inventario, clientes),
             3 => consultar(finanzas, inventario, clientes),
             4 => editar(finanzas, inventario, clientes),
@@ -208,4 +246,6 @@ fn main() {
             _ => break
         }
     }
+
+    println!("Ganancia de la caja = ${}", suma)
 }
