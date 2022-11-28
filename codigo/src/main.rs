@@ -1,3 +1,4 @@
+use std::default;
 use std::io::stdin;
 use std::fs::File;
 use std::path::Path;
@@ -28,10 +29,10 @@ fn is_entero_positivo(numero: &str) -> bool {
 }
 
 
-fn open_file_to_append(path: &Path) -> File{
+fn open_file_to_write(path: &Path) -> File{
     open_file(path);
     let mut binding = OpenOptions::new();
-    let binding = binding.append(true);
+    let binding = binding.write(true);
     let file: File = match binding.open(path){
         Err(_why) => panic!("No se puede abrir el archivo"),
         Ok(file) => file,
@@ -69,28 +70,50 @@ fn open_file(path: &Path) -> String{
 }
 
 
-fn cambiar_inventario(inventario: &Path, entrada: String) -> Producto {
+fn cambiar_inventario(inventario: &Path, entrada: &str) -> Producto {
     let mut producto: Producto = Default::default();
     let mut text_inventario: String = open_file(inventario);
-    let mut flie_inventario: File = open_file_to_append(inventario);
+    let mut file_inventario: File = open_file_to_write(inventario);
+    let mut linea = "".to_string();
 
     for a in text_inventario.split("\n") {
         let mut contador = 0;
         for b in a.split(",") {
-            if entrada.trim() != b && contador == 0{
+            if entrada.trim() != b && contador == 0 {
+                linea = linea + a;
                 break
+            }
+            let mut temp:u32 = 0;
+            if is_entero_positivo(b.trim()) {
+                temp = b.trim().parse::<u32>().unwrap();
+                temp = temp - 1;
             }
             match contador {
                 0 => producto.codigo = b.to_string(),
                 1 => producto.nombre = b.to_string(),
                 2 => producto.costo = b.to_string(),
                 3 => producto.venta = b.to_string(),
-                4 => producto.stock = b.to_string(),
-                _ => panic!("AAAAAAAAAAAAAAAA")
+                4 => producto.stock = (temp - 1).to_string(),
+                _ => continue
+            }
+            if contador != 0 && contador != 4 {
+                linea = linea + "," + b;
+            } else if contador == 4 {
+                linea = linea + "," + &temp.to_string();
+            } else {
+                linea = linea + b;
             }
             contador += 1;
         }
+        linea = linea + "\n";
     }
+
+    if producto.codigo == "".to_string() {
+        producto.venta = "0".to_string();
+    }
+    
+
+    file_inventario.write_all(linea.as_bytes()).unwrap();
 
     return producto;
 }
@@ -125,6 +148,7 @@ fn vender(finanzas: &Path, inventario: &Path) {
     let mut suma = 0;
 
     loop {
+        println!("${}", suma);
         let mut entrada: String = String::new();
         stdin().read_line(&mut entrada).unwrap();
 
@@ -134,10 +158,26 @@ fn vender(finanzas: &Path, inventario: &Path) {
         }
 
         let mut text_finanzas: String =  open_file(finanzas);
-        let mut file_finanzas: File = open_file_to_append(finanzas);
+        let mut file_finanzas: File = open_file_to_write(finanzas);
+
+        let producto: Producto = cambiar_inventario(inventario, &entrada);
+        if producto.codigo == "".to_string() {
+            loop {
+                println!("Producto no válido presiones 1 para continuar");
+                let mut entrada2: String = String::new();
+                stdin().read_line(&mut entrada2).unwrap();
+                if entrada2.trim() == "1".to_string(){
+                    break
+                }
+            }
+            continue;
+        }
         
-        let producto: Producto = cambiar_inventario(inventario, entrada);
-     }
+
+        let venta: u32 = producto.venta.trim().parse().unwrap();
+        suma = suma + venta;
+    }
+        
 }
 
 
@@ -205,5 +245,4 @@ fn main() {
             _ => break
         }
     }
-
 }
