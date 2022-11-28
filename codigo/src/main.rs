@@ -69,26 +69,6 @@ fn open_file(path: &Path) -> String{
 }
 
 
-fn pedir_rut() -> String {
-    let mut rut: String = String::new();
-    loop{
-        println!("Escriba el rut del cliente sin puntos, guion o dígito verificador");
-        println!("'Enter' para no ingresar");
-        stdin().read_line(&mut rut).unwrap();
-        if !is_entero_positivo(&rut) || rut.trim().len() > 8 || rut.trim().len() < 7{
-            if rut.trim() == "".to_string() {
-                break
-            }
-            println!("\nIntentelo denuevo\n");
-            rut = "".to_string();
-            continue
-        }
-        break
-    }
-    return rut.trim().to_string()
-}
-
-
 fn cambiar_inventario(inventario: &Path, entrada: String) -> Producto {
     let mut producto: Producto = Default::default();
     let mut text_inventario: String = open_file(inventario);
@@ -141,19 +121,7 @@ fn fin_venta(suma: u32) {
 }
 
 
-fn vender(finanzas: &Path, inventario: &Path, clientes: &Path) -> u32 {
-    /*
-        Iniciar una venta, pedir el rut del usuario, e ir agregando los productos a pantalla y cuanto
-    debe pagar, si pone un - antes del código resta el producto a la compra si existe, sino lanza
-    error de que el producto no está en la venta, saliendo con un 1.
-        Ir restando del inventario cada producto escaneado, además de si pone al rut, agregar el 1%
-    de la compra como cupón, si el producto no está en el inventario, continua la compra, pero lanza
-    un error de inventario .
-        Ir agregando a finanzas las ganancias de cada producto
-        terminar la compra con un 0, pone el pago y sale el vuelto, 0 y vuelve al menú
-     */
-
-    let rut: &str = &pedir_rut();
+fn vender(finanzas: &Path, inventario: &Path) {
     let mut suma = 0;
 
     loop {
@@ -166,36 +134,29 @@ fn vender(finanzas: &Path, inventario: &Path, clientes: &Path) -> u32 {
         }
 
         let mut text_finanzas: String =  open_file(finanzas);
-        let mut text_clientes: String =  open_file(clientes);
-
         let mut file_finanzas: File = open_file_to_append(finanzas);
-        let mut flie_clientes: File = open_file_to_append(clientes);
-
+        
         let producto: Producto = cambiar_inventario(inventario, entrada);
-        
-        
-
-    }
-    return suma
+     }
 }
 
 
-fn ingresar(finanzas: &Path, inventario: &Path, clientes: &Path) {
+fn ingresar(finanzas: &Path, inventario: &Path) {
     print!("EEE")
 }
 
 
-fn consultar(finanzas: &Path, inventario: &Path, clientes: &Path) {
+fn consultar(finanzas: &Path, inventario: &Path) {
     print!("III")
 }
 
 
-fn editar(finanzas: &Path, inventario: &Path, clientes: &Path) {
+fn editar(finanzas: &Path, inventario: &Path) {
     print!("OOO")
 }
 
 
-fn agregar_nuevo(finanzas: &Path, inventario: &Path, clientes: &Path) {
+fn agregar_nuevo(finanzas: &Path, inventario: &Path) {
     print!("UUU")
 }
 
@@ -233,19 +194,16 @@ fn menu() -> u32 {
 fn main() {
     let finanzas: &Path = Path::new("Finanzas.csv");
     let inventario: &Path = Path::new("inventario.csv");
-    let clientes: &Path = Path::new("clientes.csv");
-    let mut suma = 0;
     loop {
         let opcion: u32 = menu();
         match opcion {
-            1 => suma += vender(finanzas, inventario, clientes),
-            2 => ingresar(finanzas, inventario, clientes),
-            3 => consultar(finanzas, inventario, clientes),
-            4 => editar(finanzas, inventario, clientes),
-            5 => agregar_nuevo(finanzas, inventario, clientes),
+            1 => vender(finanzas, inventario),
+            2 => ingresar(finanzas, inventario),
+            3 => consultar(finanzas, inventario),
+            4 => editar(finanzas, inventario),
+            5 => agregar_nuevo(finanzas, inventario),
             _ => break
         }
     }
 
-    println!("Ganancia de la caja = ${}", suma)
 }
