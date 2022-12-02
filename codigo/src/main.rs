@@ -11,15 +11,28 @@ use std::io::Write;
 struct Producto{
     codigo: String,
     nombre: String,
-    costo: String,
-    venta: String,
-    stock: String
+    costo: u32,
+    venta: u32,
+    stock: i32
 }
 
 
 fn is_entero_positivo(numero: &str) -> bool {
     for digit in numero.to_string().trim().chars(){
         if digit.is_numeric(){
+            continue
+        } else {
+            return false
+        }
+    }
+    return true
+}
+
+fn is_entero(numero: &str) -> bool {
+    for digit in numero.to_string().trim().chars(){
+        if digit.is_numeric(){
+            continue
+        } else if digit == '-' {
             continue
         } else {
             return false
@@ -41,6 +54,18 @@ fn open_file_to_write(path: &Path) -> File{
 }
 
 
+fn open_file_to_append(path: &Path) -> File{
+    open_file(path);
+    let mut binding = OpenOptions::new();
+    let binding = binding.append(true);
+    let file: File = match binding.open(path){
+        Err(_why) => panic!("No se puede abrir el archivo"),
+        Ok(file) => file,
+    };
+    return file
+}
+
+
 fn read_file(mut file: &File) -> String {
     let mut text: String = String::new();
     file.read_to_string(&mut text).unwrap();
@@ -50,8 +75,17 @@ fn read_file(mut file: &File) -> String {
 
 fn create_blank_file(path: &Path){
     let _file: File = File::create(path).expect("El archivo no pudo crearse");
-    println!("El archivo fue creado");
+    let finanzas: &Path = Path::new("Finanzas.csv");
+    let inventario: &Path = Path::new("Inventario.csv");
 
+    if path == finanzas {
+        let mut file_finanzas = open_file_to_write(path);
+        file_finanzas.write_all(b"Fecha,Costos,Ingresos\n").unwrap();
+    }
+    if path == inventario {
+        let mut file_inventario = open_file_to_write(path);
+        file_inventario.write_all(b"Codigo,Nombre,Costo,Venta,Stock\n").unwrap();
+    }
 }
 
 
@@ -70,30 +104,34 @@ fn open_file(path: &Path) -> String{
 }
 
 
-fn cambiar_inventario(inventario: &Path, entrada: &str) -> Producto {
+fn cambiar_stock(inventario: &Path, entrada: &str, cambio: i32) -> Producto {
     let mut producto: Producto = Default::default();
-    let mut text_inventario: String = open_file(inventario);
+    let text_inventario: String = open_file(inventario);
     let mut file_inventario: File = open_file_to_write(inventario);
-    let mut linea = "".to_string();
+    let mut linea: String = "".to_string();
 
     for a in text_inventario.split("\n") {
-        let mut contador = 0;
+        let mut contador: i32 = 0;
+        if a == "" {
+            break
+        }
         for b in a.split(",") {
+            
             if entrada.trim() != b && contador == 0 {
                 linea = linea + a;
                 break
             }
-            let mut temp:u32 = 0;
-            if is_entero_positivo(b.trim()) {
-                temp = b.trim().parse::<u32>().unwrap();
-                temp = temp - 1;
+            let mut temp:i32 = 0;
+            if is_entero(b.trim()) {
+                temp = b.trim().parse::<i32>().unwrap();
+                temp = temp + cambio;
             }
             match contador {
                 0 => producto.codigo = b.to_string(),
                 1 => producto.nombre = b.to_string(),
-                2 => producto.costo = b.to_string(),
-                3 => producto.venta = b.to_string(),
-                4 => producto.stock = (temp - 1).to_string(),
+                2 => producto.costo = b.trim().parse::<u32>().unwrap(),
+                3 => producto.venta = b.trim().parse::<u32>().unwrap(),
+                4 => producto.stock = temp,
                 _ => continue
             }
             if contador != 0 && contador != 4 {
@@ -109,7 +147,7 @@ fn cambiar_inventario(inventario: &Path, entrada: &str) -> Producto {
     }
 
     if producto.codigo == "".to_string() {
-        producto.venta = "0".to_string();
+        producto.venta = 0;
     }
     
 
@@ -140,27 +178,34 @@ fn fin_venta(suma: u32) {
         break
     }
     let vuelto: u32 = monto_u32 - suma;
+    println!("------------------------------");
+    println!("Monto: ${}", suma);
+    println!("Pago: ${}", monto_u32);
     println!("Vuelto: ${}", vuelto);
+    println!("------------------------------");
 }
 
 
-fn vender(finanzas: &Path, inventario: &Path) {
-    let mut suma = 0;
-
+fn vender(finanzas: &Path, inventario: &Path, fecha: &str) {
+    let mut suma: u32 = 0;
+    let mut error: bool = false;
     loop {
-        println!("${}", suma);
+        println!("Total: ${}", suma);
+        println!("------------------------------");
         let mut entrada: String = String::new();
         stdin().read_line(&mut entrada).unwrap();
 
         if entrada.trim() == "0" {
             fin_venta(suma);
+            if error{
+                println!("\nERROR DE INVENTARIO, REVISAR")
+            }
+            let mut pausa: String = String::new();
+            stdin().read_line(&mut pausa).unwrap();
             break
         }
 
-        let mut text_finanzas: String =  open_file(finanzas);
-        let mut file_finanzas: File = open_file_to_write(finanzas);
-
-        let producto: Producto = cambiar_inventario(inventario, &entrada);
+        let producto: Producto = cambiar_stock(inventario, &entrada, -1);
         if producto.codigo == "".to_string() {
             loop {
                 println!("Producto no válido presiones 1 para continuar");
@@ -172,32 +217,195 @@ fn vender(finanzas: &Path, inventario: &Path) {
             }
             continue;
         }
-        
+        println!("------------------------------");
+        println!("{}: ${}", producto.nombre, producto.venta);
 
-        let venta: u32 = producto.venta.trim().parse().unwrap();
+        let venta: u32 = producto.venta;
+        let stock: i32 = producto.stock;
+
+        if stock < 0 {
+            error = true
+        }
         suma = suma + venta;
+
+        let text_finanzas: String =  open_file(finanzas);
+        let mut file_finanzas: File = open_file_to_write(finanzas);
+        let mut cadena: String = String::new();
+        let mut existe: bool = false;
+
+        for a in text_finanzas.split("\n") {
+            if a == "" {
+                break
+            }
+            let mut contador: i32 = 0;
+            for b in a.split(",") {
+                if b != fecha && contador == 0 {
+                    cadena = cadena + a + "\n";
+                    break;
+                } else if contador != 2 {
+                    existe = true;
+                    cadena = cadena + b + ",";
+                } else {
+                    let ganancias: i32 = b.trim().parse::<i32>().unwrap() + venta as i32;
+                    cadena = cadena + &format!("{}", ganancias) +"\n";
+                }
+                contador += 1;
+            }
+        }
+        if !existe {
+            let mut file_finanzas: File = open_file_to_append(finanzas);
+            let cadena: String = format!("{},0,{}\n", fecha, venta);
+            file_finanzas.write_all(cadena.as_bytes()).unwrap();
+            continue
+        }
+        file_finanzas.write_all(cadena.as_bytes()).unwrap();
     }
         
 }
 
 
-fn ingresar(finanzas: &Path, inventario: &Path) {
-    print!("EEE")
+fn ingresar(finanzas: &Path, inventario: &Path, fecha: &str) {
+    loop {
+        let mut codigo: String = String::new();
+        let mut cantidad: String = String::new();
+
+        println!("Ingrese el código:    Ingrese (0) para salir");
+        stdin().read_line(&mut codigo).unwrap();
+        if codigo.trim() == "0" {
+            break
+        }
+
+        loop{
+            println!("Ingrese la cantidad");
+            stdin().read_line(&mut cantidad).unwrap();
+            if is_entero(&cantidad) {
+                break
+            }
+            cantidad = "".to_string();
+        }
+
+        let num_cantidad: i32 = cantidad.trim().parse().unwrap();
+        let producto: Producto = cambiar_stock(inventario, &codigo, num_cantidad);
+        
+        if producto.codigo == "".to_string() {
+            loop {
+                println!("Producto no válido presiones 1 para continuar");
+                let mut entrada: String = String::new();
+                stdin().read_line(&mut entrada).unwrap();
+                if entrada.trim() == "1".to_string(){
+                    break
+                }
+            }
+            continue;
+        }
+
+        let text_finanzas: String =  open_file(finanzas);
+        let mut file_finanzas: File = open_file_to_write(finanzas);
+        let mut cadena: String = String::new();
+        let mut existe: bool = false;
+        let precio_unidad: u32 = producto.costo;
+        let costo: i32 =  precio_unidad as i32 * num_cantidad;
+
+        for a in text_finanzas.split("\n") {
+            if a == "" {
+                break
+            }
+            let mut contador: i32 = 0;
+            for b in a.split(",") {
+                if b != fecha && contador == 0 {
+                    cadena = cadena + a + "\n";
+                    break;
+                } else if contador == 0 {
+                    existe = true;
+                    cadena = cadena + b + ",";
+                } else if contador == 2 {
+                    cadena = cadena + b + "\n";
+                }else {
+                    let temp: i32 = b.trim().parse().unwrap();
+                    cadena = cadena + &format!("{},", costo + temp);
+                }
+                contador += 1;
+            }
+        }
+        if !existe {
+            let mut file_finanzas: File = open_file_to_append(finanzas);
+            let cadena: String = format!("{},{},0\n", fecha, costo);
+            file_finanzas.write_all(cadena.as_bytes()).unwrap();
+            continue
+        }
+        file_finanzas.write_all(cadena.as_bytes()).unwrap();
+
+
+    }
 }
 
 
-fn consultar(finanzas: &Path, inventario: &Path) {
-    print!("III")
+fn consultar(inventario: &Path) {
+    let mut producto: Producto = Default::default();
+    loop {
+        let mut codigo: String = String::new();
+
+        println!("Ingrese el código:    Ingrese (0) para salir");
+        stdin().read_line(&mut codigo).unwrap();
+        if codigo.trim() == "0" {
+            break
+        }
+
+        producto = cambiar_stock(inventario, &codigo, 0);
+        
+        if producto.codigo == "".to_string() {
+            println!("Producto no encontrado");
+            continue
+        }
+        println!("------------------------------");
+        println!("Producto: {}", producto.nombre);
+        println!("Precio: ${}", producto.venta);
+        println!("Costo: ${}", producto.costo);
+        println!("Stock: {}", producto.stock);
+        println!("------------------------------");
+    }
+       
 }
 
 
 fn editar(finanzas: &Path, inventario: &Path) {
-    print!("OOO")
+    let mut producto: Producto = Default::default();
+    loop {
+        let mut codigo: String = String::new();
+
+        println!("Ingrese el código:    Ingrese (0) para salir");
+        stdin().read_line(&mut codigo).unwrap();
+        if codigo.trim() == "0" {
+            break
+        }
+
+        producto = cambiar_stock(inventario, &codigo, 0);
+        
+        if producto.codigo == "".to_string() {
+            println!("Producto no encontrado");
+            continue
+        }
+        println!("Escriba las nuevas caraterísticas");
+        for a in 0..4 {
+            let mut entrada: String = String::new();
+            match a{
+                0 => println!("Nombre"),
+                1 => println!("Costo de compra"),
+                _ => println!("Precio")
+            }
+            stdin().read_line(&mut entrada).unwrap();
+            match a {
+                0 => producto.nombre = entrada.trim().to_string(),
+                1 => producto.costo = entrada.trim().parse().unwrap(),
+                _ => producto.venta =  entrada.trim().parse().unwrap()
+            }
+        }
+    }
 }
 
 
 fn agregar_nuevo(finanzas: &Path, inventario: &Path) {
-    print!("UUU")
+
 }
 
 
@@ -234,12 +442,58 @@ fn menu() -> u32 {
 fn main() {
     let finanzas: &Path = Path::new("Finanzas.csv");
     let inventario: &Path = Path::new("inventario.csv");
+    let mut mes: String = String::new();
+    let mut year: String = String::new();
+
+    loop{
+        println!("Escriba el mes:");
+        println!("(1) Enero:        (7) Julio:");
+        println!("(2) Febrero:      (8) Agosto:");
+        println!("(3) Marzo:        (9) Septiembre:");
+        println!("(4) Abril:        (10) Octubre");
+        println!("(5) Mayo:         (11) Noviembre");
+        println!("(6) Junio:        (12) Diciembre");
+
+        stdin().read_line(&mut mes).unwrap();
+        match mes.trim() {
+            "1"|"2"|"3"|"4"|"5"|"6"|"7"|"8"|"9"|"10"|"11"|"12" => break,
+            _ => mes = "".to_string()
+        };
+    }
+
+    loop{
+        println!("\nEscriba el año: (ejemplo: '2022')");
+        stdin().read_line(&mut year).unwrap();
+        if is_entero_positivo(&year) {
+            break
+        }
+        year = "".to_string(); 
+    }
+    
+    let mut fecha: String = match mes.trim() {
+        "1" => "Enero".to_string(),
+        "2" => "febrero".to_string(),
+        "3" => "Marzo".to_string(),
+        "4" => "Abril".to_string(),
+        "5" => "Mayo".to_string(),
+        "6" => "Junio".to_string(),
+        "7" => "Julio".to_string(),
+        "8" => "Agosto".to_string(),
+        "9" => "Septimebre".to_string(),
+        "10" => "Octubre".to_string(),
+        "11" => "Noviembre".to_string(),
+        "12" => "Diciembre".to_string(),
+        _ => panic!("")
+    };
+
+    fecha = fecha + year.trim();
+
     loop {
         let opcion: u32 = menu();
         match opcion {
-            1 => vender(finanzas, inventario),
-            2 => ingresar(finanzas, inventario),
-            3 => consultar(finanzas, inventario),
+            1 => vender(finanzas, inventario, &fecha),
+            2 => ingresar(finanzas, inventario, &fecha),
+            3 => consultar(inventario),
             4 => editar(finanzas, inventario),
             5 => agregar_nuevo(finanzas, inventario),
             _ => break
