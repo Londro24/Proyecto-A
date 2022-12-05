@@ -5,6 +5,7 @@ use std::path::Path;
 use std::io::Read;
 use std::fs::OpenOptions;
 use std::io::Write;
+use chrono::prelude::*;
 
 
 #[derive(Default)]
@@ -368,8 +369,20 @@ fn consultar(inventario: &Path) {
 }
 
 
+fn cambiar_inventario(producto: Producto, inventario: &Path) {
+    let text: String = open_file(inventario);
+    let mut file: File = open_file_to_write(inventario);
+    let mut linea: String = "".to_string();
+
+    for a in text.split("\n") {
+        for b in a.split(",") {
+
+        }
+    }
+}
+
+
 fn editar(finanzas: &Path, inventario: &Path) {
-    let mut producto: Producto = Default::default();
     loop {
         let mut codigo: String = String::new();
 
@@ -379,7 +392,8 @@ fn editar(finanzas: &Path, inventario: &Path) {
             break
         }
 
-        producto = cambiar_stock(inventario, &codigo, 0);
+        let mut producto = cambiar_stock(inventario, &codigo, 0);
+
         
         if producto.codigo == "".to_string() {
             println!("Producto no encontrado");
@@ -400,6 +414,7 @@ fn editar(finanzas: &Path, inventario: &Path) {
                 _ => producto.venta =  entrada.trim().parse().unwrap()
             }
         }
+        cambiar_inventario(producto, inventario);
     }
 }
 
@@ -442,35 +457,10 @@ fn menu() -> u32 {
 fn main() {
     let finanzas: &Path = Path::new("Finanzas.csv");
     let inventario: &Path = Path::new("inventario.csv");
-    let mut mes: String = String::new();
-    let mut year: String = String::new();
+    let mut date = Utc::now();
 
-    loop{
-        println!("Escriba el mes:");
-        println!("(1) Enero:        (7) Julio:");
-        println!("(2) Febrero:      (8) Agosto:");
-        println!("(3) Marzo:        (9) Septiembre:");
-        println!("(4) Abril:        (10) Octubre");
-        println!("(5) Mayo:         (11) Noviembre");
-        println!("(6) Junio:        (12) Diciembre");
-
-        stdin().read_line(&mut mes).unwrap();
-        match mes.trim() {
-            "1"|"2"|"3"|"4"|"5"|"6"|"7"|"8"|"9"|"10"|"11"|"12" => break,
-            _ => mes = "".to_string()
-        };
-    }
-
-    loop{
-        println!("\nEscriba el año: (ejemplo: '2022')");
-        stdin().read_line(&mut year).unwrap();
-        if is_entero_positivo(&year) {
-            break
-        }
-        year = "".to_string(); 
-    }
     
-    let mut fecha: String = match mes.trim() {
+    let mut fecha: String = match date.month() {
         "1" => "Enero".to_string(),
         "2" => "febrero".to_string(),
         "3" => "Marzo".to_string(),
@@ -486,7 +476,8 @@ fn main() {
         _ => panic!("")
     };
 
-    fecha = fecha + year.trim();
+    fecha = fecha + date.year();
+    println!("FEcha: {}", fecha)
 
     loop {
         let opcion: u32 = menu();
